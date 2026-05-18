@@ -10,11 +10,11 @@ import {
   safeFetchExecutionDelegateRecordV1FromSeeds,
 } from '@metaplex-foundation/mpl-agent-registry';
 import {
-  createUmi,
   err,
   getAgentPda,
   info,
   ok,
+  readAgentContext,
   toToolError,
 } from '@metaplex-foundation/agent-runtime';
 import { base58 } from '@metaplex-foundation/umi/serializers';
@@ -57,9 +57,9 @@ export const delegateExecution = defineTool({
     signature: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ agentAssetAddress }) => {
+  execute: async ({ agentAssetAddress }, { requestContext }) => {
     try {
-      const umi = createUmi();
+      const { umi } = readAgentContext(requestContext);
       const assetPubkey = publicKey(agentAssetAddress);
 
       // Wait for the asset to be confirmed on-chain before doing anything.

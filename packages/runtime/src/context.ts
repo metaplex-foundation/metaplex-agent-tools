@@ -1,41 +1,60 @@
 import type { AgentContext } from './types/agent.js';
 
 /**
- * Safely read the full `AgentContext` out of a Mastra `RequestContext`
- * (or any Map-like object exposing `.get(key)`). Missing keys fall back
- * to sensible defaults so callers never need to deal with `undefined`.
+ * Read the full `AgentContext` out of a Mastra `RequestContext` (or any
+ * Map-like object exposing `.get(key)`).
  *
- * Replaces inline per-field composition scattered across tools (M8).
+ * Missing fields default to `null` (for object/string types) or a safe
+ * baseline (for primitives). A tool that actually requires a missing
+ * field will fail with a clear error when it dereferences `null` —
+ * which is much easier to debug than a silent `undefined`.
+ *
+ * The one exception is `agentMode`, which has no safe default — every
+ * tool that consults the context needs to know if it's running in chat
+ * or worker-loop context, and a missing value would just hide a host
+ * wiring bug.
  */
 export function readAgentContext(ctx: any): AgentContext {
-  const get = <T>(key: string, fallback: T): T => {
+  const opt = <T>(key: string, fallback: T): T => {
     try {
-      const value = ctx?.get?.(key);
-      return value === undefined || value === null ? fallback : (value as T);
+      const v = ctx?.get?.(key);
+      return v === undefined || v === null ? fallback : (v as T);
     } catch {
       return fallback;
     }
   };
 
-  // agentMode has no safe default: it's always populated by the server from
-  // validated config, and a silent fallback would hide wiring bugs in custom
-  // runtimes (e.g. autonomous worker loops that forget to set it).
   const agentMode = ctx?.get?.('agentMode');
   if (agentMode !== 'public' && agentMode !== 'autonomous') {
     throw new Error(
-      "AgentContext is missing 'agentMode'. Construct the RequestContext with ['agentMode', 'public'] or ['agentMode', 'autonomous'] before invoking tools.",
+      "AgentContext is missing 'agentMode' (must be 'public' or 'autonomous'). Host did not populate RequestContext correctly.",
     );
   }
 
   return {
-    walletAddress: get<string | null>('walletAddress', null),
-    transactionSender: get<AgentContext['transactionSender']>('transactionSender', null),
+    // umi/network/agentKeypairAddress are typed as required because every
+    // production host provides them — they're left as raw .get() so a missing
+    // value surfaces as a dereference error at the call site (clearer than
+    // a generic "missing key" thrown here).
+    umi: opt<any>('umi', null),
+    network: opt<'solana-mainnet' | 'solana-devnet'>('network', 'solana-mainnet'),
+    agentKeypairAddress: opt<string>('agentKeypairAddress', ''),
     agentMode,
-    agentAssetAddress: get<string | null>('agentAssetAddress', null),
-    agentTokenMint: get<string | null>('agentTokenMint', null),
-    agentFeeSol: get<number>('agentFeeSol', 0.001),
-    tokenOverride: get<string | null>('tokenOverride', null),
-    ownerWallet: get<string | null>('ownerWallet', null),
-    txCounter: get<AgentContext['txCounter']>('txCounter', null),
+    walletAddress: opt<string | null>('walletAddress', null),
+    ownerWallet: opt<string | null>('ownerWallet', null),
+    agentAssetAddress: opt<string | null>('agentAssetAddress', null),
+    agentTokenMint: opt<string | null>('agentTokenMint', null),
+    tokenOverride: opt<string | null>('tokenOverride', null),
+    transactionSender: opt<AgentContext['transactionSender']>('transactionSender', null),
+    txCounter: opt<AgentContext['txCounter']>('txCounter', null),
+    dryRun: opt<boolean>('dryRun', false),
+    maxSlippageBps: opt<number>('maxSlippageBps', 500),
+    maxPriceImpactPct: opt<number>('maxPriceImpactPct', 2.0),
+    agentFeeSol: opt<number>('agentFeeSol', 0.001),
+    jupiterApiKey: opt<string | null>('jupiterApiKey', null),
+    state: opt<AgentContext['state']>('state', null),
+    onAssetRegistered: opt<AgentContext['onAssetRegistered']>('onAssetRegistered', null),
+    onTokenLaunched: opt<AgentContext['onTokenLaunched']>('onTokenLaunched', null),
+    ensureFunded: opt<AgentContext['ensureFunded']>('ensureFunded', null),
   };
 }

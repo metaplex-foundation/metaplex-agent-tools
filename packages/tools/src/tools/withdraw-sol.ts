@@ -4,7 +4,6 @@ import { createNoopSigner, publicKey, sol } from '@metaplex-foundation/umi';
 import { transferSol as transferSolIx } from '@metaplex-foundation/mpl-toolbox';
 import {
   BASE58_ADDRESS_RE,
-  createUmi,
   err,
   getAgentPda,
   ok,
@@ -52,7 +51,7 @@ export const withdrawSol = defineTool({
     const context = readAgentContext(requestContext);
 
     try {
-      const umi = createUmi();
+      const { umi } = context;
       const dest = publicKey(destination);
 
       if (source === 'keypair') {

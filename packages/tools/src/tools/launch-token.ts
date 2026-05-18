@@ -4,21 +4,14 @@ import { publicKey } from '@metaplex-foundation/umi';
 import {
   createAndRegisterLaunch,
   type BondingCurveLaunchInput,
-  type SvmNetwork,
 } from '@metaplex-foundation/genesis';
 import {
-  createUmi,
   err,
-  getConfig,
   info,
   ok,
-  printRegistrationBanner,
-  setState,
+  readAgentContext,
   toToolError,
-  updateConfigFromState,
-  type AgentContext,
 } from '@metaplex-foundation/agent-runtime';
-import type { RequestContext } from '@mastra/core/request-context';
 
 export const launchToken = defineTool({
   id: 'launch-token',
@@ -67,57 +60,46 @@ export const launchToken = defineTool({
       );
     }
 
-    const ctx = requestContext as RequestContext<AgentContext> | undefined;
-    const agentAssetAddress = ctx?.get('agentAssetAddress');
+    const ctx = readAgentContext(requestContext);
 
-    if (!agentAssetAddress) {
+    if (!ctx.agentAssetAddress) {
       return err(
         'NOT_REGISTERED',
         'Agent must be registered first. Use register-agent and delegate-execution before launching a token.',
       );
     }
 
-    const existingMint = ctx?.get('agentTokenMint');
-    if (existingMint) {
+    if (ctx.agentTokenMint) {
       return info({
-        mintAddress: existingMint,
-        message: `Agent already has a token: ${existingMint}. Each agent can only have one token.`,
+        mintAddress: ctx.agentTokenMint,
+        message: `Agent already has a token: ${ctx.agentTokenMint}. Each agent can only have one token.`,
       });
     }
 
-    const tokenOverride = ctx?.get('tokenOverride');
-    if (tokenOverride) {
+    if (ctx.tokenOverride) {
       return info({
-        mintAddress: tokenOverride,
-        message: `TOKEN_OVERRIDE is set to ${tokenOverride}. This agent is configured to buy back an existing token instead of launching its own.`,
+        mintAddress: ctx.tokenOverride,
+        message: `Token override is set to ${ctx.tokenOverride}. This agent is configured to buy back an existing token instead of launching its own.`,
       });
     }
 
     try {
-      const config = getConfig();
-      const umi = createUmi();
-
-      let network: SvmNetwork = 'solana-mainnet';
-      if (config.SOLANA_RPC_URL.includes('devnet')) {
-        network = 'solana-devnet';
-      }
-
       const launchConfig: BondingCurveLaunchInput = {};
       if (firstBuyAmount !== undefined) {
         launchConfig.firstBuyAmount = firstBuyAmount;
       }
 
       const result = await createAndRegisterLaunch(
-        umi,
+        ctx.umi,
         {},
         {
-          wallet: umi.identity.publicKey,
+          wallet: ctx.umi.identity.publicKey,
           agent: {
-            mint: publicKey(agentAssetAddress),
+            mint: publicKey(ctx.agentAssetAddress),
             setToken: true,
           },
           launchType: 'bondingCurve',
-          network,
+          network: ctx.network,
           token: {
             name,
             symbol,
@@ -128,27 +110,16 @@ export const launchToken = defineTool({
         }
       );
 
-      setState({ agentTokenMint: result.mintAddress });
-      updateConfigFromState();
-
-      // Same persistence footgun as register-agent: ephemeral PaaS
-      // filesystems lose agent-state.json on redeploy unless the operator
-      // promotes the mint address to env. Loud banner with platform-aware
-      // instructions.
-      //
-      // Wrapped in its own try/catch so a stderr/banner failure cannot
-      // bubble into the outer catch and report a successful (irreversible)
-      // mint as a launch failure.
+      // Host-implemented side effects: persist the mint, print the banner,
+      // update in-memory config. Isolated in its own try so a banner
+      // failure cannot bubble into the outer catch and report a successful
+      // (irreversible) mint as a launch failure.
       try {
-        printRegistrationBanner({
-          kind: 'token',
-          address: result.mintAddress,
-          envKey: 'AGENT_TOKEN_MINT',
-        });
-      } catch (bannerErr) {
+        ctx.onTokenLaunched?.(result.mintAddress);
+      } catch (cbErr) {
         console.error(
-          '[launch-token] banner emission failed (mint succeeded):',
-          bannerErr instanceof Error ? bannerErr.message : String(bannerErr),
+          '[launch-token] onTokenLaunched callback failed (mint succeeded):',
+          cbErr instanceof Error ? cbErr.message : String(cbErr),
         );
       }
 

@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { BASE58_SIGNATURE_RE, createUmi, err, info, ok, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_SIGNATURE_RE, err, info, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
 
 export const getTransaction = defineTool({
   id: 'get-transaction',
@@ -24,9 +24,9 @@ export const getTransaction = defineTool({
     err: z.any().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ signature }) => {
+  execute: async ({ signature }, { requestContext }) => {
     try {
-      const umi = createUmi();
+      const { umi } = readAgentContext(requestContext);
 
       // Use RPC call to getSignatureStatuses
       const result = await umi.rpc.call<{

@@ -1,16 +1,13 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import {
-  createUmi,
   err,
   executeSwap,
-  getConfig,
   ok,
+  readAgentContext,
   SOL_MINT,
   toToolError,
-  type AgentContext,
 } from '@metaplex-foundation/agent-runtime';
-import type { RequestContext } from '@mastra/core/request-context';
 
 export const sellToken = defineTool({
   id: 'sell-token',
@@ -43,40 +40,39 @@ export const sellToken = defineTool({
     message: z.string().optional(),
   }),
   execute: async ({ tokenAmount, slippageBps }, { requestContext }) => {
-    const ctx = requestContext as RequestContext<AgentContext> | undefined;
-    const agentAssetAddress = ctx?.get('agentAssetAddress');
-    const tokenOverride = ctx?.get('tokenOverride');
-    const agentTokenMint = tokenOverride ?? ctx?.get('agentTokenMint');
+    const ctx = readAgentContext(requestContext);
+    const agentTokenMint = ctx.tokenOverride ?? ctx.agentTokenMint;
 
-    if (!agentAssetAddress) {
+    if (!ctx.agentAssetAddress) {
       return err('NOT_REGISTERED', 'Agent must be registered first. No agent asset address found.');
     }
 
     if (!agentTokenMint) {
       return err(
         'NO_TOKEN',
-        'No token configured. Launch a token with launch-token, or set TOKEN_OVERRIDE in .env.',
+        'No token configured. Launch a token with launch-token, or configure a token override.',
       );
     }
 
-    const config = getConfig();
-    if (slippageBps !== undefined && slippageBps > config.MAX_SLIPPAGE_BPS) {
+    if (slippageBps !== undefined && slippageBps > ctx.maxSlippageBps) {
       return err(
         'SLIPPAGE_TOO_HIGH',
-        `Slippage ${slippageBps} bps exceeds configured max of ${config.MAX_SLIPPAGE_BPS} bps`,
+        `Slippage ${slippageBps} bps exceeds configured max of ${ctx.maxSlippageBps} bps`,
       );
     }
 
     try {
-      const umi = createUmi();
-
-      const result = await executeSwap(umi, {
-        walletAddress: umi.identity.publicKey.toString(),
-        inputMint: agentTokenMint,
-        outputMint: SOL_MINT,
-        amount: tokenAmount,
-        slippageBps,
-      });
+      const result = await executeSwap(
+        ctx.umi,
+        {
+          walletAddress: ctx.umi.identity.publicKey.toString(),
+          inputMint: agentTokenMint,
+          outputMint: SOL_MINT,
+          amount: tokenAmount,
+          slippageBps,
+        },
+        { apiKey: ctx.jupiterApiKey, maxPriceImpactPct: ctx.maxPriceImpactPct },
+      );
 
       return ok({
         signature: result.signature,

@@ -1,7 +1,7 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import { publicKey } from '@metaplex-foundation/umi';
-import { BASE58_ADDRESS_RE, createUmi, err, ok, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
 
 export const getBalance = defineTool({
   id: 'get-balance',
@@ -24,9 +24,9 @@ export const getBalance = defineTool({
     balanceLamports: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ address }) => {
+  execute: async ({ address }, { requestContext }) => {
     try {
-      const umi = createUmi();
+      const { umi } = readAgentContext(requestContext);
       const pubkey = publicKey(address);
       const balance = await umi.rpc.getBalance(pubkey);
       const lamports = balance.basisPoints.toString();

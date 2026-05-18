@@ -70,15 +70,10 @@ export async function ensureAgentFunded(
   // Build a minimal funding context — we explicitly zero the fee so the
   // registration top-up itself doesn't try to prepend another fee transfer.
   const fundingContext: AgentContext = {
-    walletAddress: ctx.walletAddress,
-    transactionSender: ctx.transactionSender,
+    ...ctx,
     agentMode: 'public',
     agentAssetAddress: null,
-    agentTokenMint: ctx.agentTokenMint,
     agentFeeSol: 0,
-    tokenOverride: ctx.tokenOverride,
-    ownerWallet: ctx.ownerWallet,
-    txCounter: ctx.txCounter,
   };
 
   await submitOrSend(umi, builder, fundingContext, {

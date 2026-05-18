@@ -13,7 +13,6 @@ import {
 } from '@metaplex-foundation/mpl-toolbox';
 import {
   BASE58_ADDRESS_RE,
-  createUmi,
   err,
   ok,
   readAgentContext,
@@ -62,7 +61,7 @@ export const transferToken = defineTool({
         );
       }
 
-      const umi = createUmi();
+      const { umi } = context;
       const authority = createNoopSigner(publicKey(context.walletAddress));
 
       const mintPk = publicKey(mint);

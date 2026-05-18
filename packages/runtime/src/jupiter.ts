@@ -6,7 +6,6 @@ import {
 import { base64 } from '@metaplex-foundation/umi/serializers';
 import { findAssociatedTokenPda } from '@metaplex-foundation/mpl-toolbox';
 import bs58 from 'bs58';
-import { getConfig } from './config.js';
 
 export interface SwapParams {
   walletAddress: string;
@@ -14,6 +13,17 @@ export interface SwapParams {
   outputMint: string;
   amount: string;
   slippageBps?: number;
+}
+
+/**
+ * Jupiter API configuration the host injects per-call. Lets the toolkit
+ * stay pure (no env reads).
+ */
+export interface JupiterConfig {
+  /** API key for Jupiter Pro plan; null falls back to the free tier. */
+  apiKey: string | null;
+  /** Cap on `priceImpactPct` (percent, e.g. `2.0` = 2%) before a quote is rejected. */
+  maxPriceImpactPct: number;
 }
 
 export interface SwapResult {
@@ -42,8 +52,10 @@ interface SwapResponse {
 const JUPITER_QUOTE_URL = 'https://api.jup.ag/swap/v1/quote';
 const JUPITER_SWAP_URL = 'https://api.jup.ag/swap/v1/swap';
 
-export async function getSwapQuote(params: SwapParams): Promise<QuoteResponse> {
-  const config = getConfig();
+export async function getSwapQuote(
+  params: SwapParams,
+  cfg: JupiterConfig,
+): Promise<QuoteResponse> {
   const url = new URL(JUPITER_QUOTE_URL);
   url.searchParams.set('inputMint', params.inputMint);
   url.searchParams.set('outputMint', params.outputMint);
@@ -51,8 +63,8 @@ export async function getSwapQuote(params: SwapParams): Promise<QuoteResponse> {
   url.searchParams.set('slippageBps', String(params.slippageBps ?? 50));
 
   const headers: Record<string, string> = {};
-  if (config.JUPITER_API_KEY) {
-    headers['x-api-key'] = config.JUPITER_API_KEY;
+  if (cfg.apiKey) {
+    headers['x-api-key'] = cfg.apiKey;
   }
 
   const response = await fetch(url.toString(), { headers });
@@ -71,11 +83,11 @@ export async function getSwapQuote(params: SwapParams): Promise<QuoteResponse> {
   if (rawImpact !== undefined && rawImpact !== null && rawImpact !== '') {
     const impactFraction = parseFloat(String(rawImpact));
     if (!Number.isNaN(impactFraction)) {
-      const maxFraction = config.MAX_PRICE_IMPACT_PCT / 100;
+      const maxFraction = cfg.maxPriceImpactPct / 100;
       if (impactFraction > maxFraction) {
         const impactPct = (impactFraction * 100).toFixed(2);
         throw new Error(
-          `Price impact ${impactPct}% exceeds configured max of ${config.MAX_PRICE_IMPACT_PCT}%`,
+          `Price impact ${impactPct}% exceeds configured max of ${cfg.maxPriceImpactPct}%`,
         );
       }
     }
@@ -86,14 +98,14 @@ export async function getSwapQuote(params: SwapParams): Promise<QuoteResponse> {
 
 export async function getSwapTransaction(
   walletAddress: string,
-  quoteResponse: QuoteResponse
+  quoteResponse: QuoteResponse,
+  cfg: JupiterConfig,
 ): Promise<SwapResponse> {
-  const config = getConfig();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
-  if (config.JUPITER_API_KEY) {
-    headers['x-api-key'] = config.JUPITER_API_KEY;
+  if (cfg.apiKey) {
+    headers['x-api-key'] = cfg.apiKey;
   }
 
   const response = await fetch(JUPITER_SWAP_URL, {
@@ -342,10 +354,11 @@ export async function simulateAndVerifySwap(
  */
 export async function executeSwap(
   umi: Umi,
-  params: SwapParams
+  params: SwapParams,
+  cfg: JupiterConfig,
 ): Promise<SwapResult> {
-  const quote = await getSwapQuote(params);
-  const swapResponse = await getSwapTransaction(params.walletAddress, quote);
+  const quote = await getSwapQuote(params, cfg);
+  const swapResponse = await getSwapTransaction(params.walletAddress, quote, cfg);
   const { swapTransaction } = swapResponse;
 
   // Decode the base64 transaction from Jupiter into a Uint8Array

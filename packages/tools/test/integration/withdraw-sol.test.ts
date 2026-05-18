@@ -94,7 +94,7 @@ test("withdraw-sol source='keypair' in dry-run returns a DRYRUN signature and in
   const result = (await withdrawSol.execute!(
     { source: 'keypair', destination: DESTINATION, amount: 0.1 },
     {
-      requestContext: fakeContext({
+      requestContext: fakeContext({ dryRun: true,
         agentMode: 'autonomous',
         txCounter: counter,
       }),
@@ -113,7 +113,7 @@ test("withdraw-sol source='pda' without agentAssetAddress returns INVALID_INPUT"
   const result = (await withdrawSol.execute!(
     { source: 'pda', destination: DESTINATION, amount: 0.1 },
     {
-      requestContext: fakeContext({
+      requestContext: fakeContext({ dryRun: true,
         agentMode: 'autonomous',
         agentAssetAddress: null,
         txCounter: counter,
@@ -133,7 +133,7 @@ test("withdraw-sol source='keypair' wraps the per-tick cap as a Withdraw-failed 
   const result = (await withdrawSol.execute!(
     { source: 'keypair', destination: DESTINATION, amount: 0.1 },
     {
-      requestContext: fakeContext({
+      requestContext: fakeContext({ dryRun: true,
         agentMode: 'autonomous',
         txCounter: counter,
       }),
@@ -149,7 +149,7 @@ test('withdraw-sol rejects unknown source via Zod', async () => {
   const result = (await withdrawSol.execute!(
     { source: 'somewhere', destination: DESTINATION, amount: 0.1 } as any,
     {
-      requestContext: fakeContext({ agentMode: 'autonomous' }),
+      requestContext: fakeContext({ dryRun: true, agentMode: 'autonomous' }),
     } as any,
   )) as any;
 
@@ -160,7 +160,7 @@ test('withdraw-sol rejects non-positive amount via Zod', async () => {
   const result = (await withdrawSol.execute!(
     { source: 'keypair', destination: DESTINATION, amount: 0 } as any,
     {
-      requestContext: fakeContext({ agentMode: 'autonomous' }),
+      requestContext: fakeContext({ dryRun: true, agentMode: 'autonomous' }),
     } as any,
   )) as any;
 
@@ -171,7 +171,7 @@ test('withdraw-sol rejects malformed destination via Zod', async () => {
   const result = (await withdrawSol.execute!(
     { source: 'keypair', destination: 'not-base58', amount: 0.1 } as any,
     {
-      requestContext: fakeContext({ agentMode: 'autonomous' }),
+      requestContext: fakeContext({ dryRun: true, agentMode: 'autonomous' }),
     } as any,
   )) as any;
 
@@ -188,7 +188,7 @@ test("withdraw-sol source='pda' with agentAssetAddress proceeds past the validat
   const result = (await withdrawSol.execute!(
     { source: 'pda', destination: DESTINATION, amount: 0.1 },
     {
-      requestContext: fakeContext({
+      requestContext: fakeContext({ dryRun: true,
         agentMode: 'autonomous',
         agentAssetAddress: AGENT_ASSET,
         txCounter: counter,

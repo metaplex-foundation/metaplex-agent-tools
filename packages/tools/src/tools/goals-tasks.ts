@@ -1,16 +1,25 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import {
-  addGoal,
-  addTask,
-  appendJournal,
-  closeGoal,
-  closeTask,
   err,
-  getGoalById,
   info,
   ok,
+  readAgentContext,
+  type StateStore,
 } from '@metaplex-foundation/agent-runtime';
+
+function requireState(requestContext: any): StateStore | { error: ReturnType<typeof err> } {
+  const { state } = readAgentContext(requestContext);
+  if (!state) {
+    return {
+      error: err(
+        'INVALID_INPUT',
+        'No state store available. This tool requires the host to provide a StateStore in the agent context.',
+      ),
+    };
+  }
+  return state;
+}
 
 /**
  * Persist a goal the owner has briefed in chat. The agent should paraphrase
@@ -38,9 +47,11 @@ export const setGoal = defineTool({
     description: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ description }) => {
-    const goal = addGoal(description);
-    appendJournal({
+  execute: async ({ description }, { requestContext }) => {
+    const state = requireState(requestContext);
+    if ('error' in state) return state.error;
+    const goal = state.addGoal(description);
+    state.appendJournal({
       kind: 'goal_set',
       summary: `Goal set: ${description}`,
       txSigs: [],
@@ -83,13 +94,15 @@ export const closeGoalTool = defineTool({
     finalStatus: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ goalId, status, reason }) => {
-    const goal = closeGoal(goalId, status);
+  execute: async ({ goalId, status, reason }, { requestContext }) => {
+    const state = requireState(requestContext);
+    if ('error' in state) return state.error;
+    const goal = state.closeGoal(goalId, status);
     if (!goal) {
       return err('NOT_FOUND', `No goal found with id ${goalId}.`);
     }
     if (reason) {
-      appendJournal({
+      state.appendJournal({
         kind: 'tick',
         summary: `Goal ${goalId} ${status}: ${reason}`,
         txSigs: [],
@@ -135,17 +148,19 @@ export const addTaskTool = defineTool({
     goalId: z.string().nullable().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ description, goalId }) => {
+  execute: async ({ description, goalId }, { requestContext }) => {
+    const state = requireState(requestContext);
+    if ('error' in state) return state.error;
     // Validate goalId references a real goal before linking. A dangling
     // goalId would silently corrupt the goal->tasks relationship and the
     // model would have no way to recover (no list-goals tool by design).
-    if (goalId !== undefined && getGoalById(goalId) === null) {
+    if (goalId !== undefined && state.getGoalById(goalId) === null) {
       return err(
         'NOT_FOUND',
         `No goal found with id ${goalId}. Use the goal id from the active-goals list, or omit goalId for a free-floating task.`,
       );
     }
-    const task = addTask(description, goalId ?? null);
+    const task = state.addTask(description, goalId ?? null);
     return ok({
       taskId: task.id,
       description: task.description,
@@ -183,8 +198,10 @@ export const closeTaskTool = defineTool({
     finalStatus: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ taskId, status, result }) => {
-    const task = closeTask(taskId, status, result);
+  execute: async ({ taskId, status, result }, { requestContext }) => {
+    const state = requireState(requestContext);
+    if ('error' in state) return state.error;
+    const task = state.closeTask(taskId, status, result);
     if (!task) {
       return err('NOT_FOUND', `No task found with id ${taskId}.`);
     }

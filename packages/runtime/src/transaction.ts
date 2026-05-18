@@ -10,7 +10,6 @@ import { base64 } from '@metaplex-foundation/umi/serializers';
 import { execute, fetchAsset, findAssetSignerPda } from '@metaplex-foundation/mpl-core';
 import { transferSol } from '@metaplex-foundation/mpl-toolbox';
 import { randomUUID } from 'crypto';
-import { getConfig } from './config.js';
 import type { AgentContext } from './types/agent.js';
 import bs58 from 'bs58';
 
@@ -33,9 +32,7 @@ export async function submitOrSend(
   context: AgentContext,
   options?: { message?: string; index?: number; total?: number }
 ): Promise<string> {
-  const config = getConfig();
-
-  if (config.AGENT_MODE === 'public') {
+  if (context.agentMode === 'public') {
     if (!context.transactionSender) {
       throw new Error('No transaction sender available. Is the WebSocket server running?');
     }
@@ -94,7 +91,7 @@ export async function submitOrSend(
   // skip the broadcast/confirm. The synthetic signature is intentionally
   // non-base58 so it can't be confused with a real on-chain signature in
   // logs or the journal.
-  if (config.AUTONOMOUS_DRY_RUN) {
+  if (context.dryRun) {
     await builder.buildAndSign(umi);
     const fakeSig = `DRYRUN_${randomUUID().split('-')[0]}`;
     console.log(`[dry-run] would have submitted transaction (sig=${fakeSig})`);
@@ -163,9 +160,7 @@ export async function submitAsAgent(
   inner: TransactionBuilder,
   context: AgentContext,
 ): Promise<string> {
-  const config = getConfig();
-
-  if (config.AGENT_MODE !== 'autonomous') {
+  if (context.agentMode !== 'autonomous') {
     throw new Error('submitAsAgent is only valid in autonomous mode.');
   }
 
@@ -179,7 +174,7 @@ export async function submitAsAgent(
   const asset = await fetchAsset(umi, agentAssetAddress);
   const builder = execute(umi, { asset, instructions: inner });
 
-  if (config.AUTONOMOUS_DRY_RUN) {
+  if (context.dryRun) {
     await builder.buildAndSign(umi);
     const fakeSig = `DRYRUN_${randomUUID().split('-')[0]}`;
     console.log(`[dry-run] would have submitted PDA-signed transaction (sig=${fakeSig})`);

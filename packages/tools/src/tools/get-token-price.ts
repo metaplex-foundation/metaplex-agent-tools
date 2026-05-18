@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { BASE58_ADDRESS_RE, err, getConfig, info, ok, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, info, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
 
 export const getTokenPrice = defineTool({
   id: 'get-token-price',
@@ -8,7 +8,7 @@ export const getTokenPrice = defineTool({
   category: 'read',
   requires: ['umi-rpc', 'jupiter'],
   description:
-    'Get the current USD price of a Solana token by its mint address. Uses the Jupiter Price API. Returns null price if the token is not listed or if JUPITER_API_KEY is not configured.',
+    'Get the current USD price of a Solana token by its mint address. Uses the Jupiter Price API. Returns null price if the token is not listed or if a Jupiter API key is not configured.',
   inputSchema: z.object({
     mintAddress: z
       .string()
@@ -23,22 +23,22 @@ export const getTokenPrice = defineTool({
     source: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ mintAddress }) => {
-    const config = getConfig();
+  execute: async ({ mintAddress }, { requestContext }) => {
+    const { jupiterApiKey } = readAgentContext(requestContext);
 
-    if (!config.JUPITER_API_KEY) {
+    if (!jupiterApiKey) {
       return info({
         mint: mintAddress,
         priceUsd: null,
         source: 'jupiter (no API key configured)',
-        message: 'JUPITER_API_KEY not configured; returning null price.',
+        message: 'Jupiter API key not configured; returning null price.',
       });
     }
 
     try {
       const url = `https://api.jup.ag/price/v3?ids=${mintAddress}`;
       const response = await fetch(url, {
-        headers: { 'x-api-key': config.JUPITER_API_KEY },
+        headers: { 'x-api-key': jupiterApiKey },
       });
 
       if (!response.ok) {

@@ -8,7 +8,6 @@ import {
 import { transferSol as transferSolIx } from '@metaplex-foundation/mpl-toolbox';
 import {
   BASE58_ADDRESS_RE,
-  createUmi,
   err,
   ok,
   readAgentContext,
@@ -51,7 +50,7 @@ export const transferSol = defineTool({
         );
       }
 
-      const umi = createUmi();
+      const { umi } = context;
       const source = createNoopSigner(publicKey(context.walletAddress));
 
       const builder = transferSolIx(umi, {

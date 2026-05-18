@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { ok, setPaused } from '@metaplex-foundation/agent-runtime';
+import { err, ok, readAgentContext } from '@metaplex-foundation/agent-runtime';
 
 /**
  * Toggle the worker-loop pause flag. When paused=true, the worker skips
@@ -31,8 +31,15 @@ export const setPausedTool = defineTool({
     paused: z.boolean().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ paused, reason }) => {
-    setPaused(paused, reason);
+  execute: async ({ paused, reason }, { requestContext }) => {
+    const { state } = readAgentContext(requestContext);
+    if (!state) {
+      return err(
+        'INVALID_INPUT',
+        'No state store available. set-paused requires the host to provide a StateStore in the agent context.',
+      );
+    }
+    state.setPaused(paused, reason);
     return ok({
       paused,
       message: paused ? 'Worker loop paused.' : 'Worker loop resumed.',

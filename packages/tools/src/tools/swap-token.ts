@@ -2,15 +2,12 @@ import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import {
   BASE58_ADDRESS_RE,
-  createUmi,
   err,
   executeSwap,
-  getConfig,
   ok,
+  readAgentContext,
   toToolError,
-  type AgentContext,
 } from '@metaplex-foundation/agent-runtime';
-import type { RequestContext } from '@mastra/core/request-context';
 
 export const swapToken = defineTool({
   id: 'swap-token',
@@ -51,33 +48,33 @@ export const swapToken = defineTool({
     message: z.string().optional(),
   }),
   execute: async ({ inputMint, outputMint, amount, slippageBps }, { requestContext }) => {
-    const ctx = requestContext as RequestContext<AgentContext> | undefined;
-    const agentAssetAddress = ctx?.get('agentAssetAddress');
+    const ctx = readAgentContext(requestContext);
 
-    if (!agentAssetAddress) {
+    if (!ctx.agentAssetAddress) {
       return err('NOT_REGISTERED', 'Agent must be registered first. No agent asset address found.');
     }
 
     // Runtime slippage cap: schema stays permissive so operators can tune
     // via env without a code change; the hard ceiling lives here.
-    const config = getConfig();
-    if (slippageBps !== undefined && slippageBps > config.MAX_SLIPPAGE_BPS) {
+    if (slippageBps !== undefined && slippageBps > ctx.maxSlippageBps) {
       return err(
         'SLIPPAGE_TOO_HIGH',
-        `Slippage ${slippageBps} bps exceeds configured max of ${config.MAX_SLIPPAGE_BPS} bps`,
+        `Slippage ${slippageBps} bps exceeds configured max of ${ctx.maxSlippageBps} bps`,
       );
     }
 
     try {
-      const umi = createUmi();
-
-      const result = await executeSwap(umi, {
-        walletAddress: umi.identity.publicKey.toString(),
-        inputMint,
-        outputMint,
-        amount,
-        slippageBps,
-      });
+      const result = await executeSwap(
+        ctx.umi,
+        {
+          walletAddress: ctx.umi.identity.publicKey.toString(),
+          inputMint,
+          outputMint,
+          amount,
+          slippageBps,
+        },
+        { apiKey: ctx.jupiterApiKey, maxPriceImpactPct: ctx.maxPriceImpactPct },
+      );
 
       return ok({
         signature: result.signature,
@@ -88,8 +85,6 @@ export const swapToken = defineTool({
       });
     } catch (error) {
       console.error('[swap-token]', error);
-      // INTEGRITY errors from simulateAndVerifySwap (C6) surface as
-      // plain Error objects whose message starts with 'INTEGRITY:'.
       if (error instanceof Error && error.message.startsWith('INTEGRITY:')) {
         return err('INTEGRITY', `Swap refused: ${error.message.slice('INTEGRITY:'.length).trim()}`);
       }

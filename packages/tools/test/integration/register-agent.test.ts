@@ -78,43 +78,40 @@ test('register-agent short-circuits with info when agentAssetAddress is already 
   assert.match(result.message, /already registered/);
 });
 
-test('register-agent returns INSUFFICIENT_FUNDS when the keypair balance is zero in autonomous mode', async () => {
-  // Mock getBalance to report zero lamports — below funding threshold.
-  rpc.on('getBalance', () => ({ context: { slot: 1 }, value: 0 }));
-
+test('register-agent surfaces the ensureFunded error when the host-provided callback rejects', async () => {
   const result = (await registerAgent.execute!(
     { name: 'TestBot', description: 'a test agent' },
     {
       requestContext: fakeContext({
         agentMode: 'autonomous',
         agentAssetAddress: null,
-        // No transactionSender — autonomous mode can't auto-fund.
+        ensureFunded: async () => {
+          throw new Error('insufficient SOL: agent keypair has 0 lamports');
+        },
       }),
     } as any,
   )) as any;
 
   assert.equal(result.status, 'error');
-  assert.equal(result.code, 'INSUFFICIENT_FUNDS');
   assert.match(result.message, /insufficient SOL/);
 });
 
-test('register-agent surfaces structured error when balance RPC fails', async () => {
-  rpc.on('getBalance', () => {
-    throw new Error('rpc down');
-  });
-
-  const result = (await registerAgent.execute!(
+test('register-agent calls ensureFunded before attempting the mint', async () => {
+  let invoked = 0;
+  await registerAgent.execute!(
     { name: 'TestBot', description: 'a test agent' },
     {
       requestContext: fakeContext({
         agentMode: 'autonomous',
         agentAssetAddress: null,
+        ensureFunded: async () => {
+          invoked += 1;
+          throw new Error('stop here so we don\'t hit the registry');
+        },
       }),
     } as any,
-  )) as any;
-
-  assert.equal(result.status, 'error');
-  assert.match(result.message, /Registration failed/);
+  );
+  assert.equal(invoked, 1, 'register-agent must invoke ensureFunded before mint');
 });
 
 test('register-agent rejects empty name via Zod', async () => {

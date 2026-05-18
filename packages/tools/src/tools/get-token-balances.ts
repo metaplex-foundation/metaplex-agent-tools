@@ -5,7 +5,7 @@ import {
   fetchAllTokenByOwner,
   fetchMint,
 } from '@metaplex-foundation/mpl-toolbox';
-import { BASE58_ADDRESS_RE, createUmi, err, ok, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
 
 export const getTokenBalances = defineTool({
   id: 'get-token-balances',
@@ -36,9 +36,9 @@ export const getTokenBalances = defineTool({
       .optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ address }) => {
+  execute: async ({ address }, { requestContext }) => {
     try {
-      const umi = createUmi();
+      const { umi } = readAgentContext(requestContext);
       const owner = publicKey(address);
       const tokenAccounts = await fetchAllTokenByOwner(umi, owner);
 

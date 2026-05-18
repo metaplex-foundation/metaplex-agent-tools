@@ -151,7 +151,7 @@ test('launch-token returns info short-circuit when TOKEN_OVERRIDE is configured'
 
   assert.equal(result.status, 'info');
   assert.equal(result.mintAddress, EXISTING_MINT);
-  assert.match(result.message, /TOKEN_OVERRIDE is set/);
+  assert.match(result.message, /Token override is set/);
 });
 
 test('launch-token rejects non-URL imageUri via Zod', async () => {

@@ -7,7 +7,6 @@ import {
 } from '@metaplex-foundation/umi';
 import { transferSol as transferSolIx } from '@metaplex-foundation/mpl-toolbox';
 import {
-  createUmi,
   err,
   getAgentPda,
   ok,
@@ -57,7 +56,7 @@ export const fundAgentSol = defineTool({
         );
       }
 
-      const umi = createUmi();
+      const { umi } = context;
       const source = createNoopSigner(publicKey(context.walletAddress));
 
       let destination;

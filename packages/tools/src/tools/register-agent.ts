@@ -1,31 +1,20 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import { mintAndSubmitAgent } from '@metaplex-foundation/mpl-agent-registry';
-import type { SvmNetwork } from '@metaplex-foundation/mpl-agent-registry';
 import {
-  createUmi,
-  ensureAgentFunded,
   err,
-  getConfig,
   info,
   ok,
-  printRegistrationBanner,
   readAgentContext,
-  setState,
-  updateConfigFromState,
-  clearOwnerCache,
   toToolError,
-  type AgentContext,
   type ToolResult,
 } from '@metaplex-foundation/agent-runtime';
-import type { RequestContext } from '@mastra/core/request-context';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 
 /**
- * Module-scoped single-flight guard (H4). If a registration is already in
+ * Module-scoped single-flight guard. If a registration is already in
  * progress, concurrent callers await the same promise and observe the same
- * result instead of each starting an independent funding+mint flow. The
- * entry is cleared in a `finally` so subsequent (retry) calls start fresh.
+ * result instead of each starting an independent funding+mint flow.
  */
 let inflightRegistration: Promise<ToolResult<Record<string, unknown>>> | null = null;
 
@@ -54,12 +43,11 @@ export const registerAgent = defineTool({
     fundingRequested: z.boolean().optional(),
   }),
   execute: async ({ name, description, metadataUri }, { requestContext }) => {
-    const ctx = requestContext as RequestContext<AgentContext> | undefined;
-    const existingAsset = ctx?.get('agentAssetAddress');
-    if (existingAsset) {
+    const ctx = readAgentContext(requestContext);
+    if (ctx.agentAssetAddress) {
       return info({
-        assetAddress: existingAsset,
-        message: `Agent is already registered with asset address: ${existingAsset}`,
+        assetAddress: ctx.agentAssetAddress,
+        message: `Agent is already registered with asset address: ${ctx.agentAssetAddress}`,
       });
     }
 
@@ -68,26 +56,26 @@ export const registerAgent = defineTool({
     }
 
     const run = async (): Promise<ToolResult<Record<string, unknown>>> => {
+      // Run ensureFunded outside the outer try so we can return its error
+      // verbatim with an INSUFFICIENT_FUNDS code, instead of letting it get
+      // re-mapped by toToolError into a generic message.
+      if (ctx.ensureFunded) {
+        try {
+          await ctx.ensureFunded();
+        } catch (e) {
+          return err(
+            'INSUFFICIENT_FUNDS',
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      }
+
       try {
-        const config = getConfig();
-        const agentContext = readAgentContext(ctx);
-        const umi = createUmi();
-
-        const funding = await ensureAgentFunded(umi, agentContext);
-        if (!funding.funded) {
-          return err('INSUFFICIENT_FUNDS', funding.reason);
-        }
-
-        let network: SvmNetwork = 'solana-mainnet';
-        if (config.SOLANA_RPC_URL.includes('devnet')) {
-          network = 'solana-devnet';
-        }
-
-        const result = await mintAndSubmitAgent(umi, {}, {
-          wallet: umi.identity.publicKey,
+        const result = await mintAndSubmitAgent(ctx.umi, {}, {
+          wallet: ctx.umi.identity.publicKey,
           name,
           uri: metadataUri ?? 'https://example.com/agent-metadata.json',
-          network,
+          network: ctx.network,
           agentMetadata: {
             type: 'agent',
             name,
@@ -100,19 +88,10 @@ export const registerAgent = defineTool({
 
         const signatureStr = base58.deserialize(result.signature)[0];
 
-        setState({ agentAssetAddress: result.assetAddress });
-        updateConfigFromState();
-        clearOwnerCache();
-
-        // Loud, copy-pasteable reminder. On PaaS targets with ephemeral
-        // filesystems (Railway/Fly/Render/Heroku) the next redeploy would
-        // otherwise nuke agent-state.json and silently re-register the
-        // agent under a fresh asset address — the canonical footgun.
-        printRegistrationBanner({
-          kind: 'agent',
-          address: result.assetAddress,
-          envKey: 'AGENT_ASSET_ADDRESS',
-        });
+        // Host-implemented side effects: persist the asset address, clear
+        // owner cache, print the registration banner. We pass the address
+        // — the host knows where to write it (file, env, etc.).
+        ctx.onAssetRegistered?.(result.assetAddress);
 
         return ok({
           assetAddress: result.assetAddress,

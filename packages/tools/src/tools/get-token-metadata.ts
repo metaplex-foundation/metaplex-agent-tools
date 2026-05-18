@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { BASE58_ADDRESS_RE, createUmi, err, ok, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
 
 export const getTokenMetadata = defineTool({
   id: 'get-token-metadata',
@@ -24,8 +24,8 @@ export const getTokenMetadata = defineTool({
     image: z.string().nullable().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ mintAddress }) => {
-    const umi = createUmi();
+  execute: async ({ mintAddress }, { requestContext }) => {
+    const { umi } = readAgentContext(requestContext);
 
     try {
       const asset = await umi.rpc.call<{
