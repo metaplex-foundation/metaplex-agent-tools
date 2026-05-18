@@ -7,7 +7,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { fakeContext } from '../helpers/mock-context.js';
 import { getTokenPrice } from '../../src/tools/get-token-price.js';
 
@@ -35,7 +34,6 @@ before(() => {
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
   nock.cleanAll();
 });
 

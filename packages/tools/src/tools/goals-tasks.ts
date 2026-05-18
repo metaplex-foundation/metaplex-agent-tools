@@ -6,7 +6,7 @@ import {
   ok,
   readAgentContext,
   type StateStore,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 function requireState(requestContext: any): StateStore | { error: ReturnType<typeof err> } {
   const { state } = readAgentContext(requestContext);

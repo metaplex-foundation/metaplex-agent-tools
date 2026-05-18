@@ -6,7 +6,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { fakeContext } from '../helpers/mock-context.js';
 import { launchToken } from '../../src/tools/launch-token.js';
 
@@ -43,12 +42,10 @@ beforeEach(() => {
       AGENT_KEYPAIR,
     }),
   );
-  _resetConfigForTests();
 });
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
 });
 
 test('launch-token rejects when confirmIrreversible is missing (Zod)', async () => {

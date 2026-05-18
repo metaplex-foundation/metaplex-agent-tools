@@ -1,7 +1,7 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
 import { publicKey } from '@metaplex-foundation/umi';
-import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '../internal/index.js';
 
 export const getBalance = defineTool({
   id: 'get-balance',

@@ -11,7 +11,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { fakeContext } from '../helpers/mock-context.js';
 import { transferSol } from '../../src/tools/transfer-sol.js';
 
@@ -71,7 +70,6 @@ before(async () => {
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
 });
 
 after(async () => {

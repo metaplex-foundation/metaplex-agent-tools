@@ -8,7 +8,7 @@ import {
   readAgentContext,
   toToolError,
   type ToolResult,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 
 /**

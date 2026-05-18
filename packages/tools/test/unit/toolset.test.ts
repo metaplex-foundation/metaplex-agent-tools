@@ -8,7 +8,7 @@ import {
   readOnlyBundle,
   tradingBundle,
 } from '../../src/index.js';
-import type { AuthPolicy } from '@metaplex-foundation/agent-runtime';
+import type { AuthPolicy } from '../../src/index.js';
 
 test('createToolset() with no options returns every registered tool', () => {
   const all = createToolset();

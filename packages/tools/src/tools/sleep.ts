@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { err, ok } from '@metaplex-foundation/agent-runtime';
+import { err, ok } from '../internal/index.js';
 
 export const sleep = defineTool({
   id: 'sleep',

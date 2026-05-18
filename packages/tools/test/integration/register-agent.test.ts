@@ -10,7 +10,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { fakeContext } from '../helpers/mock-context.js';
 import { registerAgent } from '../../src/tools/register-agent.js';
 
@@ -54,12 +53,10 @@ beforeEach(() => {
       AGENT_KEYPAIR,
     }),
   );
-  _resetConfigForTests();
 });
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
 });
 
 test('register-agent short-circuits with info when agentAssetAddress is already set', async () => {

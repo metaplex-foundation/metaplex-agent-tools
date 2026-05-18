@@ -11,7 +11,7 @@ import {
   ok,
   readAgentContext,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const launchToken = defineTool({
   id: 'launch-token',

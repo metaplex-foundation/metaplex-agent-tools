@@ -13,7 +13,7 @@ import {
   readAgentContext,
   submitWithUserWallet,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const fundAgentSol = defineTool({
   id: 'fund-agent-sol',

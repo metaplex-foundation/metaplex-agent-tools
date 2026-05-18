@@ -7,7 +7,7 @@ import {
   readAgentContext,
   SOL_MINT,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const buybackToken = defineTool({
   id: 'buyback-token',

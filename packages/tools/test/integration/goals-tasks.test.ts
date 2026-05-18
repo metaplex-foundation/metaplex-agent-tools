@@ -8,7 +8,7 @@ import {
 } from '../../src/tools/goals-tasks.js';
 import { fakeContext } from '../helpers/mock-context.js';
 import { createInMemoryStateStore, type InMemoryState } from '../helpers/in-memory-state.js';
-import type { StateStore } from '@metaplex-foundation/agent-runtime';
+import type { StateStore } from '../../src/index.js';
 
 /**
  * Integration tests for the autonomous goals-tasks toolset.

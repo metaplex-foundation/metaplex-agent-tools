@@ -18,7 +18,7 @@ import {
   readAgentContext,
   submitOrSend,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const transferToken = defineTool({
   id: 'transfer-token',

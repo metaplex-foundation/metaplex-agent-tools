@@ -14,7 +14,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { fakeContext } from '../helpers/mock-context.js';
 import { withdrawSol } from '../../src/tools/withdraw-sol.js';
 
@@ -80,12 +79,10 @@ beforeEach(() => {
       AUTONOMOUS_DRY_RUN: 'true',
     }),
   );
-  _resetConfigForTests();
 });
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
 });
 
 test("withdraw-sol source='keypair' in dry-run returns a DRYRUN signature and increments the tx counter", async () => {

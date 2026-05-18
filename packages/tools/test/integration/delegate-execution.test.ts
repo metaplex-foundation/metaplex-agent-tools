@@ -10,7 +10,6 @@ import {
   restoreEnv,
   defaultTestEnv,
 } from '../helpers/env.js';
-import { _resetConfigForTests } from '@metaplex-foundation/agent-runtime';
 import { delegateExecution } from '../../src/tools/delegate-execution.js';
 
 /**
@@ -56,12 +55,10 @@ beforeEach(() => {
       AGENT_KEYPAIR,
     }),
   );
-  _resetConfigForTests();
 });
 
 afterEach(() => {
   restoreEnv();
-  _resetConfigForTests();
 });
 
 test('delegate-execution rejects empty agentAssetAddress via Zod', async () => {

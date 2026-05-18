@@ -16,7 +16,7 @@ import {
   ok,
   readAgentContext,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 import { base58 } from '@metaplex-foundation/umi/serializers';
 
 const MAX_POLL_ATTEMPTS = 30;

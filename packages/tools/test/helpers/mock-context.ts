@@ -6,7 +6,7 @@ import {
 } from '@metaplex-foundation/umi';
 import { createUmi as createUmiBase } from '@metaplex-foundation/umi-bundle-defaults';
 import { mplToolbox } from '@metaplex-foundation/mpl-toolbox';
-import type { StateStore } from '@metaplex-foundation/agent-runtime';
+import type { StateStore } from '../../src/index.js';
 import bs58 from 'bs58';
 
 export interface FakeContextOpts {

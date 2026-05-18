@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { err, ok, readAgentContext } from '@metaplex-foundation/agent-runtime';
+import { err, ok, readAgentContext } from '../internal/index.js';
 
 /**
  * Toggle the worker-loop pause flag. When paused=true, the worker skips

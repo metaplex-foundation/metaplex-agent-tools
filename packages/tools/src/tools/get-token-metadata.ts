@@ -1,6 +1,6 @@
 import { defineTool } from '../define-tool.js';
 import { z } from 'zod';
-import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '../internal/index.js';
 
 export const getTokenMetadata = defineTool({
   id: 'get-token-metadata',

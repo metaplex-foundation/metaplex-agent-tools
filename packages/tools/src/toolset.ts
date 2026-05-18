@@ -2,7 +2,7 @@ import {
   withAuth,
   defaultAuthPolicy,
   type AuthPolicy,
-} from '@metaplex-foundation/agent-runtime';
+} from './internal/index.js';
 import type { ToolAction } from '@mastra/core/tools';
 import {
   ALL_CAPABILITIES,

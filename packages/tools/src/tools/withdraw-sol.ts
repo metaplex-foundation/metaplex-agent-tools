@@ -11,7 +11,7 @@ import {
   submitAsAgent,
   submitOrSend,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const withdrawSol = defineTool({
   id: 'withdraw-sol',

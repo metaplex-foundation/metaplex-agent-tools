@@ -3,7 +3,7 @@ import type {
   Goal,
   Task,
   JournalEntry,
-} from '@metaplex-foundation/agent-runtime';
+} from '../../src/index.js';
 
 export interface InMemoryState {
   goals: Goal[];

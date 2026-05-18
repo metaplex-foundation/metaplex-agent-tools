@@ -3,6 +3,7 @@
 // or import bundles rely on this happening before their call.
 import './tools/index.js';
 
+// Toolkit-specific API
 export { defineTool, type ToolDefinition, type DefineToolArgs } from './define-tool.js';
 export {
   ALL_CAPABILITIES,
@@ -28,6 +29,13 @@ export {
   getRegisteredTool,
 } from './registry.js';
 
-// Re-export every individual tool — for advanced consumers building
-// custom toolsets without going through the bundles.
+// Pure runtime helpers the host (and external tool authors) may need:
+//   - Solana/transaction helpers: createUmi-free; everything takes umi as an arg
+//   - Auth wrapper + policy
+//   - Result helpers (ok/info/err) + error taxonomy
+//   - AgentContext + StateStore types + Goal/Task/JournalEntry
+export * from './internal/index.js';
+
+// Individual tool exports — for advanced consumers building custom toolsets
+// outside of createToolset / the bundles.
 export * from './tools/index.js';

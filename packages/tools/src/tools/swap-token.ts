@@ -7,7 +7,7 @@ import {
   ok,
   readAgentContext,
   toToolError,
-} from '@metaplex-foundation/agent-runtime';
+} from '../internal/index.js';
 
 export const swapToken = defineTool({
   id: 'swap-token',

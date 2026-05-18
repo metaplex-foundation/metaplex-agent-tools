@@ -5,7 +5,7 @@ import {
   fetchAllTokenByOwner,
   fetchMint,
 } from '@metaplex-foundation/mpl-toolbox';
-import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '@metaplex-foundation/agent-runtime';
+import { BASE58_ADDRESS_RE, err, ok, readAgentContext, toToolError } from '../internal/index.js';
 
 export const getTokenBalances = defineTool({
   id: 'get-token-balances',
