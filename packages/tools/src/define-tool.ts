@@ -4,18 +4,20 @@ import type { Capability, ToolCategory } from './capabilities.js';
 import { registerTool } from './registry.js';
 
 /**
- * A `ToolDefinition` is the toolkit's canonical record for one tool. It
- * carries the Mastra `tool` (built via `createTool`) plus the metadata the
- * toolset builder needs to decide whether the tool can be included in a
- * given host and how to gate it.
+ * A `ToolDefinition` IS a Mastra `ToolAction` (same shape: `id`, `description`,
+ * schemas, `execute`) plus the toolkit-specific metadata attached as extra
+ * properties. Consumers can:
+ *   - pass it directly to `new Agent({ tools: { foo: setGoal } })`
+ *   - read `setGoal.authLevel`, `setGoal.requires`, `setGoal.category`
+ *   - call `setGoal.execute(args, ctx)` in tests
+ *
+ * The toolset builder still wraps `.execute` with `withAuth` at assembly time.
  */
-export interface ToolDefinition {
-  id: string;
-  authLevel: string;
-  requires: readonly Capability[];
-  category: ToolCategory;
-  tool: ToolAction<any, any, any>;
-}
+export type ToolDefinition = ToolAction<any, any, any> & {
+  readonly authLevel: string;
+  readonly requires: readonly Capability[];
+  readonly category: ToolCategory;
+};
 
 export interface DefineToolArgs<
   I extends z.ZodTypeAny,
@@ -35,11 +37,12 @@ export interface DefineToolArgs<
 }
 
 /**
- * Author a tool. Wraps Mastra's `createTool` and attaches the metadata
- * (`authLevel`, `requires`, `category`) the toolset builder consumes.
+ * Author a tool. Wraps Mastra's `createTool` and attaches the toolkit
+ * metadata (`authLevel`, `requires`, `category`) as non-enumerable
+ * properties so they don't pollute object spreads.
  *
  * Registers the resulting definition in the in-memory registry as a
- * side-effect of evaluation — importing the module that contains a
+ * side-effect of evaluation — importing the module containing a
  * `defineTool(...)` call is enough to make the tool discoverable.
  */
 export function defineTool<
@@ -53,13 +56,14 @@ export function defineTool<
     outputSchema: args.outputSchema,
     execute: args.execute as any,
   });
-  const def: ToolDefinition = {
-    id: args.id,
-    authLevel: args.authLevel,
-    requires: args.requires,
-    category: args.category,
-    tool,
-  };
+  // Attach metadata as non-enumerable so consumers spreading the tool
+  // into `Agent({ tools: { ...x } })` don't get junk keys.
+  Object.defineProperties(tool, {
+    authLevel: { value: args.authLevel, enumerable: false, writable: false },
+    requires: { value: args.requires, enumerable: false, writable: false },
+    category: { value: args.category, enumerable: false, writable: false },
+  });
+  const def = tool as ToolDefinition;
   registerTool(def);
   return def;
 }

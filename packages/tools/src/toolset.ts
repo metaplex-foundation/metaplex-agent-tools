@@ -43,8 +43,10 @@ export interface CreateToolsetOptions {
  * Build a `Record<string, Tool>` ready to pass to `new Agent({ tools })`.
  *
  * Each tool in the returned record has had `withAuth(tool, authLevel, policy)`
- * applied. Keys are camelCased tool ids (`get-balance` → `getBalance`) to
- * preserve compatibility with the existing template's export shape.
+ * applied (mutating the underlying `execute` in place, preserving Mastra's
+ * non-enumerable metadata). Keys are camelCased tool ids
+ * (`get-balance` → `getBalance`) to preserve compatibility with the existing
+ * template's export shape.
  *
  * Throws synchronously on:
  *   - unknown id / category in `include` / `exclude`
@@ -104,7 +106,7 @@ export function createToolset(
       missingCaps[def.id] = [...missing];
       continue;
     }
-    const wrapped = withAuth(def.tool, def.authLevel, policy);
+    const wrapped = withAuth(def, def.authLevel, policy);
     result[toCamel(def.id)] = wrapped;
   }
 
