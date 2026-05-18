@@ -1,22 +1,16 @@
 # metaplex-agent-toolkit
 
-Reusable tool catalog + agent runtime for Metaplex Mastra agents. Lets a fresh agent pick which tools to enable without forking the template.
+Reusable tool catalog for Metaplex Mastra agents. Lets a fresh agent pick which tools to enable without forking a template.
 
-Two packages:
+Single package: **`@metaplex-foundation/agent-tools`** — every tool (balances, prices, swaps, registration, treasury, autonomous-mode goals/tasks/pause, user transfers) plus `defineTool`, `createToolset`, pre-built bundles, and the pure runtime helpers tools use (`withAuth`, `submitOrSend`, `executeSwap`, `readAgentContext`, `ok`/`info`/`err`, `AgentContext` + `StateStore` types, …).
 
-| Package | What it ships |
-|---|---|
-| **`@metaplex-foundation/agent-runtime`** | Umi factory, env config, `agent-state.json` IO, auth wrapping, Jupiter swap client, registration banner, transaction/funding helpers, error helpers, tool-result helpers, agent-context type. |
-| **`@metaplex-foundation/agent-tools`** | Every tool — balances, prices, swaps, registration, treasury, autonomous-mode goals/tasks/pause, user transfers — plus `defineTool`, `createToolset`, and pre-built bundles. |
+**Tools are pure.** They receive everything they need — `umi`, network, env-driven knobs, state store, side-effect callbacks — via the Mastra `RequestContext`. The host (e.g. `014-agent-template`) wires that context up once per chat turn / worker tick. No tool ever calls `getConfig()` or `getState()` directly.
 
 ## Quick start
 
 ```ts
 import { Agent } from '@mastra/core/agent';
-import { getConfig } from '@metaplex-foundation/agent-runtime';
 import { createToolset } from '@metaplex-foundation/agent-tools';
-
-const config = getConfig();
 
 const tools = createToolset({
   include: ['get-balance', 'swap-token', 'category:read'],
@@ -27,11 +21,13 @@ const tools = createToolset({
 new Agent({
   id: 'my-agent',
   name: 'My Agent',
-  model: config.LLM_MODEL,
+  model: 'anthropic/claude-sonnet-4-5-20250929',
   instructions: 'You are a Solana agent.',
   tools,
 });
 ```
+
+At call-time, build a `RequestContext` carrying every `AgentContext` field (see `AgentContext` type) and pass it to `agent.generate({ requestContext })`. The `014-agent-template` repo ships a `buildToolHostContext({...})` helper that does this from `getConfig()` + `agent-state.json`.
 
 For the default surface, just import a bundle:
 
@@ -81,8 +77,13 @@ A tool declares its needs in `requires: [...]`. The toolset builder checks inten
 ```ts
 import { z } from 'zod';
 import { publicKey } from '@metaplex-foundation/umi';
-import { createUmi, ok, err, toToolError } from '@metaplex-foundation/agent-runtime';
-import { defineTool } from '@metaplex-foundation/agent-tools';
+import {
+  defineTool,
+  readAgentContext,
+  ok,
+  err,
+  toToolError,
+} from '@metaplex-foundation/agent-tools';
 
 export const getAccountInfo = defineTool({
   id: 'get-account-info',
@@ -98,9 +99,9 @@ export const getAccountInfo = defineTool({
     lamports: z.string().optional(),
     message: z.string().optional(),
   }),
-  execute: async ({ address }) => {
+  execute: async ({ address }, { requestContext }) => {
     try {
-      const umi = createUmi();
+      const { umi } = readAgentContext(requestContext);
       const acct = await umi.rpc.getAccount(publicKey(address));
       if (!acct.exists) return ok({ exists: false });
       return ok({ exists: true, lamports: acct.lamports.basisPoints.toString() });
@@ -112,16 +113,16 @@ export const getAccountInfo = defineTool({
 });
 ```
 
+Notice: **the tool never calls `createUmi()` or `getConfig()`**. Everything it needs comes from `requestContext` via `readAgentContext`. That keeps tools framework-agnostic and trivially testable — pass any object with `.get(key)` and assert against the return.
+
 `defineTool` returns a Mastra-compatible tool with metadata (`authLevel`, `requires`, `category`) attached as non-enumerable properties. It registers itself in the in-memory registry as a side-effect — importing the file is enough to make it discoverable by `createToolset` and the bundles.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm build           # build both packages
-pnpm test            # run all tests (137 runtime + 117 tools = 254)
-pnpm --filter @metaplex-foundation/agent-tools test
-pnpm --filter @metaplex-foundation/agent-runtime test
+pnpm build
+pnpm test     # 118 tests
 ```
 
 ## License
