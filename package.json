@@ -1,0 +1,21 @@
+{
+  "name": "metaplex-agent-toolkit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Reusable tool catalog + runtime for Metaplex Mastra agents",
+  "scripts": {
+    "build": "pnpm -r build",
+    "clean": "pnpm -r clean",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm --filter @metaplex-foundation/agent-runtime build && pnpm -r test",
+    "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm --filter @metaplex-foundation/agent-runtime build && pnpm -r test:integration"
+  },
+  "engines": { "node": ">=22" },
+  "packageManager": "pnpm@10.33.4",
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
