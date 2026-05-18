@@ -3,7 +3,7 @@
 // or import bundles rely on this happening before their call.
 import './tools/index.js';
 
-// Toolkit-specific API
+// Tool-specific API
 export { defineTool, type ToolDefinition, type DefineToolArgs } from './define-tool.js';
 export {
   ALL_CAPABILITIES,

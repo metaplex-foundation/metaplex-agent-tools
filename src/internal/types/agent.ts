@@ -72,7 +72,7 @@ export interface JournalEntry {
  * the autonomous-mode tools (set-goal, close-goal, add-task, close-task,
  * set-paused) call. The default template implementation is file-backed
  * (`agent-state.json`); a fork can swap in Redis, Postgres, etc. without
- * touching the toolkit.
+ * touching the tool library.
  */
 export interface StateStore {
   addGoal(description: string): Goal;
@@ -89,11 +89,11 @@ export interface StateStore {
 // ---------------------------------------------------------------------------
 
 /**
- * `AgentContext` is the union of every value the toolkit's tools read from
+ * `AgentContext` is the union of every value the tool library's tools read from
  * `RequestContext`. The host (template) constructs this once per request /
  * tick / turn and passes it via `new RequestContext([...])`.
  *
- * The toolkit's tools NEVER call `getConfig()`, `getState()`, or
+ * The tool library's tools NEVER call `getConfig()`, `getState()`, or
  * `createUmi()` — every value they need lives here. This keeps tools pure
  * and free of process-globals, which makes them testable and reusable
  * across host implementations.

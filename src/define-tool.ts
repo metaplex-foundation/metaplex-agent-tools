@@ -5,7 +5,7 @@ import { registerTool } from './registry.js';
 
 /**
  * A `ToolDefinition` IS a Mastra `ToolAction` (same shape: `id`, `description`,
- * schemas, `execute`) plus the toolkit-specific metadata attached as extra
+ * schemas, `execute`) plus the tool library-specific metadata attached as extra
  * properties. Consumers can:
  *   - pass it directly to `new Agent({ tools: { foo: setGoal } })`
  *   - read `setGoal.authLevel`, `setGoal.requires`, `setGoal.category`
@@ -37,7 +37,7 @@ export interface DefineToolArgs<
 }
 
 /**
- * Author a tool. Wraps Mastra's `createTool` and attaches the toolkit
+ * Author a tool. Wraps Mastra's `createTool` and attaches the tool library
  * metadata (`authLevel`, `requires`, `category`) as non-enumerable
  * properties so they don't pollute object spreads.
  *

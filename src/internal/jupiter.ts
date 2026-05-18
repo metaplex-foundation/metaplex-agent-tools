@@ -16,7 +16,7 @@ export interface SwapParams {
 }
 
 /**
- * Jupiter API configuration the host injects per-call. Lets the toolkit
+ * Jupiter API configuration the host injects per-call. Lets the tool library
  * stay pure (no env reads).
  */
 export interface JupiterConfig {

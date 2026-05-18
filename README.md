@@ -1,10 +1,10 @@
-# metaplex-agent-toolkit
+# metaplex-agent-tools
 
-Reusable tool catalog for Metaplex Mastra agents. Lets a fresh agent pick which tools to enable without forking a template.
+Reusable Mastra tool catalog for Metaplex Solana agents. Lets a fresh agent pick which tools to enable without forking a template — install `@metaplex-foundation/agent-tools`, hand it a bundle (or `createToolset({ include, exclude, capabilities })`), and the full Metaplex tool set drops into a `new Agent({ tools })` call.
 
-Single package: **`@metaplex-foundation/agent-tools`** — every tool (balances, prices, swaps, registration, treasury, autonomous-mode goals/tasks/pause, user transfers) plus `defineTool`, `createToolset`, pre-built bundles, and the pure runtime helpers tools use (`withAuth`, `submitOrSend`, `executeSwap`, `readAgentContext`, `ok`/`info`/`err`, `AgentContext` + `StateStore` types, …).
+Ships every tool — balances, prices, swaps, registration, treasury, autonomous-mode goals/tasks/pause, user transfers — plus the pure helpers tools call (`withAuth`, `submitOrSend`, `executeSwap`, `readAgentContext`, `ok`/`info`/`err`, `AgentContext` + `StateStore` types, …).
 
-**Tools are pure.** They receive everything they need — `umi`, network, env-driven knobs, state store, side-effect callbacks — via the Mastra `RequestContext`. The host (e.g. `014-agent-template`) wires that context up once per chat turn / worker tick. No tool ever calls `getConfig()` or `getState()` directly.
+**Tools are pure.** They never call `getConfig()`, `getState()`, or `createUmi()`. Everything a tool needs — `umi`, network, env-driven knobs, state store, side-effect callbacks — arrives via the Mastra `RequestContext`. The host wires that context up once per chat turn / worker tick. See [`014-agent-template`](https://github.com/metaplex-foundation/metaplex-mastra-agent-template) for a working host implementation (`buildToolHostContext`).
 
 ## Quick start
 
@@ -27,7 +27,7 @@ new Agent({
 });
 ```
 
-At call-time, build a `RequestContext` carrying every `AgentContext` field (see `AgentContext` type) and pass it to `agent.generate({ requestContext })`. The `014-agent-template` repo ships a `buildToolHostContext({...})` helper that does this from `getConfig()` + `agent-state.json`.
+At call-time, build a `RequestContext` carrying every `AgentContext` field and pass it to `agent.generate({ requestContext })`. The reference template ships a `buildToolHostContext({...})` helper that does this from `getConfig()` + `agent-state.json` (file-backed state). A custom host can supply any `StateStore` implementation (Redis, Postgres, …) and any callbacks for `onAssetRegistered`, `onTokenLaunched`, `ensureFunded`.
 
 For the default surface, just import a bundle:
 
@@ -58,8 +58,8 @@ Pre-built convenience exports:
 | `registrationBundle` | `category:registration` (register, delegate, launch token) |
 | `transferBundle` | `category:transfer` (user-signed SOL/SPL transfers) |
 | `treasuryBundle` | `category:treasury` (withdraw, fund) |
-| `publicBundle` | Everything except `category:autonomous-only` + `withdraw-sol`. Mirrors the historical `publicAgentTools`. |
-| `autonomousBundle` | Everything except `category:transfer`. Mirrors the historical `autonomousAgentTools`. |
+| `publicBundle` | Everything except `category:autonomous-only` + `withdraw-sol`. The historical multi-user/chat surface. |
+| `autonomousBundle` | Everything except `category:transfer`. The historical autonomous-mode surface. |
 
 ### Capabilities
 
@@ -70,7 +70,7 @@ umi-rpc, agent-keypair, agent-identity, agent-token,
 jupiter, genesis, registry, state-store, banner
 ```
 
-A tool declares its needs in `requires: [...]`. The toolset builder checks intent at assembly time — it does not health-check the underlying service.
+A tool declares its needs in `requires: [...]`. The builder checks intent at assembly time — it does not health-check the underlying service.
 
 ## Authoring a tool
 
@@ -116,6 +116,39 @@ export const getAccountInfo = defineTool({
 Notice: **the tool never calls `createUmi()` or `getConfig()`**. Everything it needs comes from `requestContext` via `readAgentContext`. That keeps tools framework-agnostic and trivially testable — pass any object with `.get(key)` and assert against the return.
 
 `defineTool` returns a Mastra-compatible tool with metadata (`authLevel`, `requires`, `category`) attached as non-enumerable properties. It registers itself in the in-memory registry as a side-effect — importing the file is enough to make it discoverable by `createToolset` and the bundles.
+
+## Repo layout
+
+Flat, single-package — `src/`, `test/`, one `package.json`.
+
+```text
+metaplex-agent-tools/
+├── package.json
+├── tsconfig.json
+├── src/
+│   ├── index.ts            # public API
+│   ├── define-tool.ts      # defineTool() helper
+│   ├── capabilities.ts     # Capability + ToolCategory enums
+│   ├── registry.ts         # in-memory tool registry
+│   ├── toolset.ts          # createToolset() builder
+│   ├── bundles.ts          # pre-built bundles
+│   ├── internal/           # pure helpers tools call
+│   │   ├── auth.ts         #   withAuth, AuthPolicy
+│   │   ├── context.ts      #   readAgentContext
+│   │   ├── transaction.ts  #   submitOrSend, submitAsAgent, submitWithUserWallet
+│   │   ├── jupiter.ts      #   executeSwap, getSwapQuote, simulateAndVerifySwap
+│   │   ├── execute.ts      #   getAgentPda (mpl-core helper)
+│   │   ├── error-codes.ts  #   ToolErrorCode, toToolError
+│   │   ├── constants.ts    #   BASE58 regexes
+│   │   └── types/
+│   │       ├── agent.ts    #   AgentContext, StateStore, Goal, Task, JournalEntry
+│   │       └── tool-result.ts # ok/info/err + ToolResult types
+│   └── tools/              # 21 tools across 18 files
+└── test/
+    ├── unit/
+    ├── integration/
+    └── helpers/
+```
 
 ## Development
 
