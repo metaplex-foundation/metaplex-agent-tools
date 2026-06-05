@@ -14,6 +14,11 @@
 import { tool, type Tool } from 'ai';
 import type { ToolDescriptor } from '../descriptor.js';
 import type { AgentContext } from '../internal/types/agent.js';
+import { selectDescriptors } from '../internal/select-descriptors.js';
+// Side-effect import: forces the tool registry to populate so the bundle
+// builders below see every registered descriptor when the host calls
+// them. Tools register themselves at module load via `defineTool(...)`.
+import '../tools/index.js';
 
 /**
  * Wrap a single `ToolDescriptor` into a Vercel AI SDK `Tool`. The supplied
@@ -49,6 +54,44 @@ export function toAISdkTools(
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Pre-built bundles mirroring the root `./bundles.ts` set, but each is a
+// FUNCTION taking the host's per-turn `AgentContext`. The closure is
+// rebuilt every call — never cache the result across chat turns, since
+// the connected wallet / dry-run / tx-counter fields may have changed.
+// ---------------------------------------------------------------------------
+
+/** Read-only RPC tools — balances, prices, metadata, tx lookup. */
+export const readOnlyBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ include: ['category:read'] }), ctx);
+
+/** Jupiter trading — swap, buyback, sell. Requires `jupiter` + `agent-keypair`. */
+export const tradingBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ include: ['category:trade'] }), ctx);
+
+/** On-chain identity bootstrap — register, delegate, launch token. */
+export const registrationBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ include: ['category:registration'] }), ctx);
+
+/** User-signed SOL/SPL transfers (public-mode friendly). */
+export const transferBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ include: ['category:transfer'] }), ctx);
+
+/** Treasury movements (withdraw / fund). */
+export const treasuryBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ include: ['category:treasury'] }), ctx);
+
+/** Historical `publicAgentTools` replica — shared + transfer, no autonomous-only, no withdraw-sol. */
+export const publicBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(
+    selectDescriptors({ exclude: ['category:autonomous-only', 'withdraw-sol'] }),
+    ctx,
+  );
+
+/** Historical `autonomousAgentTools` replica — shared + autonomous-only, no user-facing transfers. */
+export const autonomousBundle = (ctx: AgentContext): Record<string, Tool> =>
+  toAISdkTools(selectDescriptors({ exclude: ['category:transfer'] }), ctx);
 
 function toCamel(kebab: string): string {
   return kebab.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
