@@ -5,6 +5,20 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./mastra": {
+      "import": "./dist/adapters/mastra.js",
+      "types": "./dist/adapters/mastra.d.ts"
+    },
+    "./ai-sdk": {
+      "import": "./dist/adapters/ai-sdk.js",
+      "types": "./dist/adapters/ai-sdk.d.ts"
+    }
+  },
   "files": [
     "dist",
     "src",
@@ -31,6 +45,7 @@
     "@metaplex-foundation/umi": "^1.1.0",
     "@metaplex-foundation/umi-bundle-defaults": "^1.1.0",
     "@noble/hashes": "1.7.1",
+    "ai": "^6.0.197",
     "bs58": "^6.0.0",
     "tweetnacl": "^1.0.3",
     "zod": "^3.23.0"

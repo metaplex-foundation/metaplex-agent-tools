@@ -6,6 +6,11 @@ import './tools/index.js';
 // Tool-specific API
 export { defineTool, type ToolDefinition, type DefineToolArgs } from './define-tool.js';
 export {
+  defineToolDescriptor,
+  type ToolDescriptor,
+  type AuthLevel,
+} from './descriptor.js';
+export {
   ALL_CAPABILITIES,
   type Capability,
   type ToolCategory,
