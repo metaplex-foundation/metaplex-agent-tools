@@ -1,9 +1,9 @@
-import { createTool, type ToolAction } from '@mastra/core/tools';
 import type { z } from 'zod';
 import type { Capability, ToolCategory } from './capabilities.js';
 import { registerTool } from './registry.js';
 import { defineToolDescriptor, type ToolDescriptor } from './descriptor.js';
 import type { AgentContext } from './internal/types/agent.js';
+import { legacyMastraWrap, type ToolAction } from './adapters/mastra.js';
 
 /**
  * A `ToolDefinition` IS a Mastra `ToolAction` (same shape: `id`, `description`,
@@ -14,16 +14,14 @@ import type { AgentContext } from './internal/types/agent.js';
  *   - call `setGoal.execute(args, ctx)` in tests
  *
  * The toolset builder still wraps `.execute` with `withAuth` at assembly time.
+ *
+ * The `descriptor` slot exposes the framework-agnostic source-of-truth
+ * (`ToolDescriptor`) that adapters and contract tests round-trip through.
  */
 export type ToolDefinition = ToolAction<any, any, any> & {
   readonly authLevel: string;
   readonly requires: readonly Capability[];
   readonly category: ToolCategory;
-  /**
-   * The framework-agnostic descriptor this tool was built from. Adapters
-   * (and contract tests) read this to reconstruct the underlying tool for
-   * a different framework without going through Mastra's wrapper.
-   */
   readonly descriptor: ToolDescriptor<any, any>;
 };
 
@@ -59,10 +57,10 @@ function agentContextAsRequestContext(ctx: AgentContext): { get: (key: string) =
 
 /**
  * Author a tool. Builds a framework-agnostic `ToolDescriptor` from the args,
- * then wraps it into a Mastra `ToolAction` for backwards compatibility with
- * existing consumers (the template, `createToolset`, the bundles re-exported
- * from the root). The Mastra wiring itself lives in `./adapters/mastra` so
- * non-Mastra hosts can import the descriptor directly.
+ * then hands it to the Mastra adapter for backwards compatibility with
+ * existing consumers (the template, `createToolset`, the root-exported
+ * bundles). The Mastra wiring itself lives in `./adapters/mastra` so
+ * non-Mastra hosts can import descriptors directly.
  *
  * Registers the resulting definition in the in-memory registry as a
  * side-effect of evaluation — importing the module containing a
@@ -72,11 +70,11 @@ export function defineTool<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
 >(args: DefineToolArgs<I, O>): ToolDefinition {
-  // Adapt the legacy `(input, { requestContext })` execute signature to the
-  // descriptor's `(input, AgentContext)` signature. Adapters call the
-  // descriptor with a real `AgentContext`; we rebuild a `RequestContext`-
-  // shaped map and hand it to the original body so existing tool files
-  // (which call `readAgentContext(requestContext)`) keep working.
+  // Build a descriptor whose execute accepts a real `AgentContext` and
+  // internally re-packs it into a `{ requestContext }`-shaped map so the
+  // caller's existing tool body (which destructures `requestContext`)
+  // keeps working when invoked through any adapter, including ones that
+  // don't have a Mastra-style request context.
   const descriptor = defineToolDescriptor<z.infer<I>, z.infer<O>>({
     id: args.id,
     description: args.description,
@@ -91,22 +89,22 @@ export function defineTool<
     },
   });
 
-  const tool = createTool({
+  // Preserve historical Mastra behavior bit-for-bit: the wrapped tool's
+  // execute is the caller's original function (Mastra parses input, then
+  // forwards). Adapters wanting the descriptor-shaped execute should read
+  // `def.descriptor` and re-wrap via `toMastraTool` / `toAISdkTool`.
+  const def = legacyMastraWrap({
     id: args.id,
     description: args.description,
     inputSchema: args.inputSchema,
     outputSchema: args.outputSchema,
     execute: args.execute as any,
-  });
-  // Attach metadata as non-enumerable so consumers spreading the tool
-  // into `Agent({ tools: { ...x } })` don't get junk keys.
-  Object.defineProperties(tool, {
-    authLevel: { value: args.authLevel, enumerable: false, writable: false },
-    requires: { value: args.requires, enumerable: false, writable: false },
-    category: { value: args.category, enumerable: false, writable: false },
-    descriptor: { value: descriptor, enumerable: false, writable: false },
-  });
-  const def = tool as ToolDefinition;
+    authLevel: args.authLevel,
+    requires: args.requires,
+    category: args.category,
+    descriptor,
+  }) as ToolDefinition;
+
   registerTool(def);
   return def;
 }
